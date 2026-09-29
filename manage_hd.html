@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRUD User Helpdesk (HD)</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; padding-top: 30px; }
+    .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .table-responsive { background: #fff; border-radius: 8px; padding: 15px; }
+  </style>
+</head>
+<body>
+
+<div class="container mb-5">
+  <h2 class="mb-4 text-center text-primary">Monitoring HD - Manajemen User</h2>
+
+  <div class="row">
+    <!-- FORM USER HD -->
+    <div class="col-md-4 mb-4">
+      <div class="card p-3">
+        <h5 class="card-title mb-3" id="formTitle">Tambah User HD</h5>
+        <form id="userForm">
+          <input type="hidden" id="userId">
+          
+          <div class="mb-3">
+            <label class="form-label">Nama Lengkap</label>
+            <input type="text" class="form-control" id="nama" placeholder="Contoh: Budi Santoso" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Email / ID Staff</label>
+            <input type="email" class="form-control" id="email" placeholder="budi@company.com" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Role / Peran</label>
+            <select class="form-select" id="role" required>
+              <option value="">-- Pilih Role --</option>
+              <option value="L1 Support">L1 Support</option>
+              <option value="L2 Support">L2 Support</option>
+              <option value="Supervisor HD">Supervisor HD</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Shift Work</label>
+            <select class="form-select" id="shift" required>
+              <option value="Pagi">Pagi (07.00 - 15.00)</option>
+              <option value="Siang">Siang (15.00 - 23.00)</option>
+              <option value="Malam">Malam (23.00 - 07.00)</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Status Staff</label>
+            <select class="form-select" id="status" required>
+              <option value="Aktif">Aktif</option>
+              <option value="Cuti">Cuti</option>
+              <option value="Non-Aktif">Non-Aktif</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100" id="btnSubmit">Simpan User</button>
+          <button type="button" class="btn btn-secondary w-100 mt-2 d-none" id="btnCancel" onclick="resetForm()">Batal Edit</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TABEL DATA USER HD -->
+    <div class="col-md-8">
+      <div class="table-responsive card">
+        <h5 class="card-title mb-3">Daftar Personil Helpdesk</h5>
+        <table class="table table-hover align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>Nama</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Shift</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody">
+            <tr>
+              <td colspan="6" class="text-center text-muted">Memuat data...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = '/api/users';
+
+  // DOM Elements
+  const userForm = document.getElementById('userForm');
+  const userIdInput = document.getElementById('userId');
+  const namaInput = document.getElementById('nama');
+  const emailInput = document.getElementById('email');
+  const roleInput = document.getElementById('role');
+  const shiftInput = document.getElementById('shift');
+  const statusInput = document.getElementById('status');
+  const btnSubmit = document.getElementById('btnSubmit');
+  const btnCancel = document.getElementById('btnCancel');
+  const formTitle = document.getElementById('formTitle');
+  const userTableBody = document.getElementById('userTableBody');
+
+  // Load Data Saat Halaman Dimuat
+  document.addEventListener('DOMContentLoaded', fetchUsers);
+
+  // 1. READ DATA (FETCH)
+  async function fetchUsers() {
+    try {
+      const res = await fetch(API_URL);
+      const result = await res.json();
+
+      if (!result.success) throw new Error(result.error || "Gagal memuat data");
+
+      userTableBody.innerHTML = '';
+      if (result.data.length === 0) {
+        userTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Belum ada data user HD.</td></tr>`;
+        return;
+      }
+
+      result.data.forEach(user => {
+        const badgeStatus = user.status === 'Aktif' ? 'bg-success' : (user.status === 'Cuti' ? 'bg-warning' : 'bg-danger');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${user.nama}</strong></td>
+          <td>${user.email}</td>
+          <td><span class="badge bg-info text-dark">${user.role}</span></td>
+          <td>${user.shift}</td>
+          <td><span class="badge ${badgeStatus}">${user.status}</span></td>
+          <td>
+            <button class="btn btn-sm btn-warning me-1" onclick="editUser('${user.id}', '${user.nama}', '${user.email}', '${user.role}', '${user.shift}', '${user.status}')">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')">Hapus</button>
+          </td>
+        `;
+        userTableBody.appendChild(tr);
+      });
+    } catch (err) {
+      console.error(err);
+      userTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Gagal memuat data: ${err.message}</td></tr>`;
+    }
+  }
+
+  // 2. CREATE / UPDATE (SUBMIT FORM)
+  userForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = userIdInput.value;
+
+    const payload = {
+      nama: namaInput.value,
+      email: emailInput.value,
+      role: roleInput.value,
+      shift: shiftInput.value,
+      status: statusInput.value
+    };
+
+    try {
+      let response;
+      if (id) {
+        // Update (PUT)
+        payload.id = id;
+        response = await fetch(API_URL, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        // Create (POST)
+        response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      const resData = await response.json();
+      if (!resData.success) throw new Error(resData.error || resData.message);
+
+      alert(resData.message || "Berhasil menyimpan data!");
+      resetForm();
+      fetchUsers();
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  });
+
+  // 3. EDIT USER
+  function editUser(id, nama, email, role, shift, status) {
+    userIdInput.value = id;
+    namaInput.value = nama;
+    emailInput.value = email;
+    roleInput.value = role;
+    shiftInput.value = shift;
+    statusInput.value = status;
+
+    formTitle.textContent = "Edit User HD";
+    btnSubmit.textContent = "Update Data";
+    btnCancel.classList.remove('d-none');
+  }
+
+  // 4. DELETE USER
+  async function deleteUser(id) {
+    if (confirm("Apakah Anda yakin ingin menghapus user HD ini?")) {
+      try {
+        const res = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
+        const resData = await res.json();
+        if (!resData.success) throw new Error(resData.error || resData.message);
+
+        alert("User berhasil dihapus!");
+        fetchUsers();
+      } catch (err) {
+        alert("Gagal menghapus: " + err.message);
+      }
+    }
+  }
+
+  // Reset Form
+  function resetForm() {
+    userForm.reset();
+    userIdInput.value = '';
+    formTitle.textContent = "Tambah User HD";
+    btnSubmit.textContent = "Simpan User";
+    btnCancel.classList.add('d-none');
+  }
+</script>
+
+</body>
+</html>
